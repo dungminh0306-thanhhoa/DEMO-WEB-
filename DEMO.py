@@ -1,4 +1,5 @@
 import streamlit as st
+import pandas as pd
 
 # ===== DỮ LIỆU SẢN PHẨM =====
 products = [
@@ -10,11 +11,13 @@ products = [
 # ===== KHỞI TẠO SESSION STATE =====
 if "cart" not in st.session_state:
     st.session_state.cart = []
+if "orders" not in st.session_state:
+    st.session_state.orders = []  # nơi lưu các đơn hàng
 
 # ===== HEADER =====
 st.title("🛒 Cửa hàng Online Demo")
 
-menu = st.sidebar.radio("📌 Menu", ["Trang chủ", "Giỏ hàng", "Thanh toán"])
+menu = st.sidebar.radio("📌 Menu", ["Trang chủ", "Giỏ hàng", "Thanh toán", "Quản lý"])
 
 # ===== TRANG CHỦ =====
 if menu == "Trang chủ":
@@ -26,7 +29,7 @@ if menu == "Trang chủ":
             st.image(product["image"], use_container_width=True)
             st.write(f"**{product['name']}**")
             st.write(f"💰 Giá: {product['price']:,} VND")
-            if st.button(f"Thêm {product['name']} vào giỏ", key=product["id"]):
+            if st.button(f"Thêm {product['name']} vào giỏ", key=f"add_{product['id']}"):
                 st.session_state.cart.append(product)
                 st.success(f"Đã thêm {product['name']} vào giỏ hàng!")
 
@@ -54,7 +57,29 @@ elif menu == "Thanh toán":
 
         if st.button("Đặt hàng"):
             if name and phone and address:
+                total = sum(item['price'] for item in st.session_state.cart)
+                order = {
+                    "Tên khách": name,
+                    "SĐT": phone,
+                    "Địa chỉ": address,
+                    "Sản phẩm": ", ".join([item['name'] for item in st.session_state.cart]),
+                    "Tổng tiền": total
+                }
+                st.session_state.orders.append(order)
                 st.success(f"✅ Cảm ơn {name}, đơn hàng của bạn đã được ghi nhận!")
                 st.session_state.cart = []  # Xóa giỏ sau khi đặt
             else:
                 st.error("Vui lòng nhập đầy đủ thông tin trước khi đặt hàng.")
+
+# ===== QUẢN LÝ =====
+elif menu == "Quản lý":
+    st.subheader("📦 Danh sách đơn hàng")
+    if not st.session_state.orders:
+        st.info("Chưa có đơn hàng nào.")
+    else:
+        df = pd.DataFrame(st.session_state.orders)
+        st.dataframe(df, use_container_width=True)
+
+        # Nút xuất ra Excel
+        csv = df.to_csv(index=False).encode("utf-8")
+        st.download_button("📥 Tải về danh sách đơn hàng (CSV)", data=csv, file_name="orders.csv", mime="text/csv")
