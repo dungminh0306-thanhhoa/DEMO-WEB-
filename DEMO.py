@@ -9,7 +9,7 @@ accounts = {
 
 # ===== DỮ LIỆU SẢN PHẨM =====
 products = [
-    {"id": 1, "name": "Áo thun", "price": 120000, "image": "imagequansip.jpg"},
+    {"id": 1, "name": "Áo thun", "price": 120000, "image": "https://via.placeholder.com/150"},
     {"id": 2, "name": "Quần jean", "price": 250000, "image": "https://via.placeholder.com/150"},
     {"id": 3, "name": "Áo khoác", "price": 350000, "image": "https://via.placeholder.com/150"},
 ]
@@ -156,6 +156,7 @@ elif menu == "Quản lý":
                 csv = df.to_csv(index=False).encode("utf-8")
                 st.download_button("📥 Tải về danh sách đơn hàng (CSV)", data=csv,
                                    file_name="orders.csv", mime="text/csv")
+
 
 
 
