@@ -1,6 +1,13 @@
 import streamlit as st
 import pandas as pd
 
+# ===== DANH SÁCH TÀI KHOẢN (demo) =====
+# role: guest | staff | admin
+accounts = {
+    "staff": {"password": "1111", "role": "staff"},
+    "admin": {"password": "1234", "role": "admin"},
+}
+
 # ===== DỮ LIỆU SẢN PHẨM =====
 products = [
     {"id": 1, "name": "Áo thun", "price": 120000, "image": "https://via.placeholder.com/150"},
@@ -8,16 +15,20 @@ products = [
     {"id": 3, "name": "Áo khoác", "price": 350000, "image": "https://via.placeholder.com/150"},
 ]
 
-# ===== KHỞI TẠO SESSION STATE =====
+# ===== SESSION STATE =====
 if "cart" not in st.session_state:
     st.session_state.cart = []
 if "orders" not in st.session_state:
-    st.session_state.orders = []  # nơi lưu các đơn hàng
+    st.session_state.orders = []
+if "logged_in" not in st.session_state:
+    st.session_state.logged_in = False
+if "role" not in st.session_state:
+    st.session_state.role = "guest"
 
 # ===== HEADER =====
 st.title("🛒 Cửa hàng Online Demo")
 
-menu = st.sidebar.radio("📌 Menu", ["Trang chủ", "Giỏ hàng", "Thanh toán", "Quản lý"])
+menu = st.sidebar.radio("📌 Menu", ["Trang chủ", "Giỏ hàng", "Thanh toán", "Đăng nhập", "Quản lý"])
 
 # ===== TRANG CHỦ =====
 if menu == "Trang chủ":
@@ -39,10 +50,9 @@ elif menu == "Giỏ hàng":
     if not st.session_state.cart:
         st.info("Giỏ hàng đang trống.")
     else:
-        total = 0
+        total = sum(item['price'] for item in st.session_state.cart)
         for item in st.session_state.cart:
             st.write(f"- {item['name']} | {item['price']:,} VND")
-            total += item['price']
         st.write(f"### Tổng cộng: {total:,} VND")
 
 # ===== THANH TOÁN =====
@@ -66,20 +76,47 @@ elif menu == "Thanh toán":
                     "Tổng tiền": total
                 }
                 st.session_state.orders.append(order)
-                st.success(f"✅ Cảm ơn {name}, đơn hàng của bạn đã được ghi nhận!")
-                st.session_state.cart = []  # Xóa giỏ sau khi đặt
+                st.success(f"✅ Cảm ơn {name}, đơn hàng đã được ghi nhận!")
+                st.session_state.cart = []
             else:
-                st.error("Vui lòng nhập đầy đủ thông tin trước khi đặt hàng.")
+                st.error("Vui lòng nhập đủ thông tin!")
+
+# ===== ĐĂNG NHẬP =====
+elif menu == "Đăng nhập":
+    if st.session_state.logged_in:
+        st.info(f"👤 Bạn đang đăng nhập với quyền: **{st.session_state.role}**")
+        if st.button("🚪 Đăng xuất"):
+            st.session_state.logged_in = False
+            st.session_state.role = "guest"
+            st.success("Đã đăng xuất!")
+    else:
+        st.subheader("🔐 Đăng nhập")
+        username = st.text_input("Tài khoản")
+        password = st.text_input("Mật khẩu", type="password")
+
+        if st.button("Đăng nhập"):
+            if username in accounts and accounts[username]["password"] == password:
+                st.session_state.logged_in = True
+                st.session_state.role = accounts[username]["role"]
+                st.success(f"✅ Đăng nhập thành công! Quyền: {st.session_state.role}")
+            else:
+                st.error("Sai tài khoản hoặc mật khẩu!")
 
 # ===== QUẢN LÝ =====
 elif menu == "Quản lý":
-    st.subheader("📦 Danh sách đơn hàng")
-    if not st.session_state.orders:
-        st.info("Chưa có đơn hàng nào.")
+    if not st.session_state.logged_in:
+        st.warning("Bạn cần đăng nhập để truy cập chức năng quản lý!")
     else:
-        df = pd.DataFrame(st.session_state.orders)
-        st.dataframe(df, use_container_width=True)
+        st.subheader("📦 Danh sách đơn hàng")
+        if not st.session_state.orders:
+            st.info("Chưa có đơn hàng nào.")
+        else:
+            df = pd.DataFrame(st.session_state.orders)
+            st.dataframe(df, use_container_width=True)
 
-        # Nút xuất ra Excel
-        csv = df.to_csv(index=False).encode("utf-8")
-        st.download_button("📥 Tải về danh sách đơn hàng (CSV)", data=csv, file_name="orders.csv", mime="text/csv")
+            if st.session_state.role == "admin":
+                csv = df.to_csv(index=False).encode("utf-8")
+                st.download_button("📥 Tải về danh sách đơn hàng (CSV)", data=csv,
+                                   file_name="orders.csv", mime="text/csv")
+            else:
+                st.info("Bạn chỉ có quyền xem, không được tải xuống.")
