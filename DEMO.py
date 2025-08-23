@@ -1,8 +1,7 @@
 import streamlit as st
 import pandas as pd
 
-# ===== DANH SÁCH TÀI KHOẢN (demo) =====
-# role: guest | staff | admin
+# ===== DANH SÁCH TÀI KHOẢN =====
 accounts = {
     "staff": {"password": "1111", "role": "staff"},
     "admin": {"password": "1234", "role": "admin"},
@@ -28,7 +27,10 @@ if "role" not in st.session_state:
 # ===== HEADER =====
 st.title("🛒 Cửa hàng Online Demo")
 
-menu = st.sidebar.radio("📌 Menu", ["Trang chủ", "Giỏ hàng", "Thanh toán", "Đăng nhập", "Quản lý"])
+menu = st.sidebar.radio(
+    "📌 Menu",
+    ["Trang chủ", "Giỏ hàng", "Thanh toán", "Đơn hàng của tôi", "Đăng nhập", "Quản lý"]
+)
 
 # ===== TRANG CHỦ =====
 if menu == "Trang chủ":
@@ -73,13 +75,34 @@ elif menu == "Thanh toán":
                     "SĐT": phone,
                     "Địa chỉ": address,
                     "Sản phẩm": ", ".join([item['name'] for item in st.session_state.cart]),
-                    "Tổng tiền": total
+                    "Tổng tiền": total,
+                    "Trạng thái": "Chờ xác nhận"
                 }
                 st.session_state.orders.append(order)
                 st.success(f"✅ Cảm ơn {name}, đơn hàng đã được ghi nhận!")
                 st.session_state.cart = []
             else:
                 st.error("Vui lòng nhập đủ thông tin!")
+
+# ===== ĐƠN HÀNG CỦA TÔI =====
+elif menu == "Đơn hàng của tôi":
+    st.subheader("📜 Tra cứu đơn hàng")
+    phone_lookup = st.text_input("Nhập số điện thoại của bạn")
+
+    if phone_lookup:
+        my_orders = [o for o in st.session_state.orders if o["SĐT"] == phone_lookup]
+        if my_orders:
+            for idx, order in enumerate(my_orders):
+                st.write(f"### Đơn hàng {idx+1}")
+                st.write(order)
+
+                # Cho phép hủy nếu đơn chưa xác nhận
+                if order["Trạng thái"] == "Chờ xác nhận":
+                    if st.button(f"❌ Hủy đơn {idx+1}", key=f"cancel_{idx}"):
+                        order["Trạng thái"] = "Đã hủy"
+                        st.warning(f"Đơn hàng {idx+1} đã được hủy!")
+        else:
+            st.warning("Không tìm thấy đơn hàng nào với số điện thoại này!")
 
 # ===== ĐĂNG NHẬP =====
 elif menu == "Đăng nhập":
@@ -111,12 +134,25 @@ elif menu == "Quản lý":
         if not st.session_state.orders:
             st.info("Chưa có đơn hàng nào.")
         else:
-            df = pd.DataFrame(st.session_state.orders)
-            st.dataframe(df, use_container_width=True)
+            for idx, order in enumerate(st.session_state.orders):
+                st.write(f"### Đơn hàng {idx+1}")
+                st.write(order)
 
+                # Nhân viên/Admin có thể cập nhật trạng thái
+                if st.session_state.role in ["staff", "admin"]:
+                    new_status = st.selectbox(
+                        f"Trạng thái đơn {idx+1}",
+                        ["Chờ xác nhận", "Đã xác nhận", "Đang giao", "Hoàn tất", "Đã hủy"],
+                        index=["Chờ xác nhận", "Đã xác nhận", "Đang giao", "Hoàn tất", "Đã hủy"].index(order["Trạng thái"]),
+                        key=f"status_{idx}"
+                    )
+                    if new_status != order["Trạng thái"]:
+                        order["Trạng thái"] = new_status
+                        st.success(f"✅ Đã cập nhật trạng thái đơn {idx+1} thành {new_status}")
+
+            # Admin có quyền tải về
             if st.session_state.role == "admin":
+                df = pd.DataFrame(st.session_state.orders)
                 csv = df.to_csv(index=False).encode("utf-8")
                 st.download_button("📥 Tải về danh sách đơn hàng (CSV)", data=csv,
                                    file_name="orders.csv", mime="text/csv")
-            else:
-                st.info("Bạn chỉ có quyền xem, không được tải xuống.")
