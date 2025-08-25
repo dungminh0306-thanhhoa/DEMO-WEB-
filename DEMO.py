@@ -36,15 +36,15 @@ products = [
     },
     {
         "id": 2,
-        "name": "Quần jean",
+        "name": "áo thun tay dài",
         "price": 250000,
-        "image": "https://via.placeholder.com/200",
+        "image": "https://drive.google.com/file/d/1lMp7IgJaxx9_9X06_HEEyW7p4UEMHiTK/view?usp=sharing",
     },
     {
         "id": 3,
         "name": "Áo khoác",
         "price": 350000,
-        "image": "https://via.placeholder.com/200",
+        "image": "https://drive.google.com/file/d/18_nnT8H71no1543HuhI4piutdo_Aq5WW/view?usp=drive_sharing",
     },
 ]
 
@@ -54,4 +54,5 @@ for p in products:
     img_link = get_image_link(p["image"])
     st.image(img_link, caption=p["name"], width=200)
     st.write(f"💰 Giá: {p['price']:,} VND")
+
 
