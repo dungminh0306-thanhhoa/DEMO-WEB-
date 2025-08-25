@@ -1,40 +1,47 @@
 import streamlit as st
+from PIL import Image
 import requests
 from io import BytesIO
-from PIL import Image
-import uuid
 
 # ---------------------------
-# Hàm tải ảnh từ Google Drive
+# Hàm hỗ trợ
 # ---------------------------
-def load_drive_image(url):
-    if "drive.google.com" in url:
-        if "/file/d/" in url:
-            file_id = url.split("/file/d/")[1].split("/")[0]
-        elif "id=" in url:
-            file_id = url.split("id=")[1]
+def load_drive_image(link):
+    """Tải ảnh từ Google Drive link về và trả về đối tượng PIL.Image"""
+    try:
+        if "drive.google.com" in link:
+            if "/file/d/" in link:
+                file_id = link.split("/file/d/")[1].split("/")[0]
+            elif "id=" in link:
+                file_id = link.split("id=")[1]
+            else:
+                return None
+            url = f"https://drive.google.com/thumbnail?id={file_id}&sz=w1000"
+            response = requests.get(url)
+            img = Image.open(BytesIO(response.content))
+            return img
         else:
-            return None
-        direct_url = f"https://drive.google.com/uc?export=view&id={file_id}"
-        try:
-            response = requests.get(direct_url)
-            if response.status_code == 200:
-                return Image.open(BytesIO(response.content))
-        except:
-            return None
-    return None
+            response = requests.get(link)
+            img = Image.open(BytesIO(response.content))
+            return img
+    except:
+        return None
+
 
 # ---------------------------
-# Dữ liệu mẫu
+# Data mẫu
 # ---------------------------
 products = [
     {"id": 1, "name": "Áo thun", "price": 120000,
-     "image": "https://via.placeholder.com/300"},
+     "image": "https://drive.google.com/file/d/1s6sJALOs2IxX5f9nqa4Tf8zut_U9KE3O/view?usp=drive_link"},
     {"id": 2, "name": "Quần jean", "price": 250000,
-     "image": "https://via.placeholder.com/300"},
+     "image": "https://via.placeholder.com/150"},
     {"id": 3, "name": "Áo khoác", "price": 350000,
-     "image": "https://via.placeholder.com/300"},
+     "image": "https://via.placeholder.com/150"},
 ]
+
+ADMIN_USER = "admin"
+ADMIN_PASS = "1234"
 
 # ---------------------------
 # Session state
@@ -43,13 +50,16 @@ if "cart" not in st.session_state:
     st.session_state.cart = []
 if "orders" not in st.session_state:
     st.session_state.orders = []
+if "logged_in" not in st.session_state:
+    st.session_state.logged_in = False
 if "is_admin" not in st.session_state:
     st.session_state.is_admin = False
 
+
 # ---------------------------
-# Menu
+# Sidebar menu
 # ---------------------------
-menu = st.sidebar.radio("📌 Menu", ["Trang chủ", "Giỏ hàng", "Đơn hàng của tôi", "Admin"])
+menu = st.sidebar.radio("Menu", ["Trang chủ", "Giỏ hàng", "Đơn hàng của tôi", "Admin"])
 
 # ---------------------------
 # Trang chủ
@@ -65,19 +75,28 @@ if menu == "Trang chủ":
                 st.image(img, caption=p["name"], width=200)
             else:
                 st.image(p["image"], caption=p["name"], width=200)
+
         with col2:
             st.subheader(p["name"])
             st.write(f"💰 Giá: {p['price']:,} VND")
+
+            qty = st.number_input(
+                f"Số lượng {p['name']}",
+                min_value=1,
+                value=1,
+                key=f"qty_home_{p['id']}"
+            )
+
             if st.button("🛒 Thêm vào giỏ", key=f"add_{p['id']}"):
                 found = False
                 for item in st.session_state.cart:
                     if item["id"] == p["id"]:
-                        item["qty"] += 1
+                        item["qty"] += qty
                         found = True
                         break
                 if not found:
-                    st.session_state.cart.append({**p, "qty": 1})
-                st.success(f"Đã thêm {p['name']} vào giỏ hàng!")
+                    st.session_state.cart.append({**p, "qty": qty})
+                st.success(f"Đã thêm {qty} {p['name']} vào giỏ hàng!")
 
 # ---------------------------
 # Giỏ hàng
@@ -85,91 +104,88 @@ if menu == "Trang chủ":
 elif menu == "Giỏ hàng":
     st.title("🛒 Giỏ hàng của bạn")
 
-    if st.session_state.cart:
-        total = 0
-        new_cart = []
-
-        for i, item in enumerate(st.session_state.cart):
-            cols = st.columns([3, 1, 1])
-            with cols[0]:
-                st.write(f"{i+1}. {item['name']} - {item['price']:,} VND")
-            with cols[1]:
-                qty = st.number_input("Số lượng", min_value=1, value=item["qty"], key=f"qty_{i}")
-                item["qty"] = qty
-            with cols[2]:
-                if st.button("❌ Xóa", key=f"remove_{i}"):
-                    continue
-            new_cart.append(item)
-            total += item["price"] * item["qty"]
-
-        st.session_state.cart = new_cart
-        st.write(f"**Tổng cộng: {total:,} VND**")
-
-        if st.button("✅ Xác nhận đặt hàng"):
-            order_id = str(uuid.uuid4())[:8]
-            st.session_state.orders.append({
-                "id": order_id,
-                "items": list(st.session_state.cart),
-                "total": total,
-                "status": "Chưa xác nhận"
-            })
-            st.session_state.cart = []
-            st.success(f"Đặt hàng thành công! Mã đơn: {order_id}")
-    else:
+    if not st.session_state.cart:
         st.info("Giỏ hàng đang trống.")
+    else:
+        total = 0
+        for item in st.session_state.cart:
+            col1, col2, col3 = st.columns([2, 1, 1])
+            with col1:
+                st.write(f"**{item['name']}** - {item['price']:,} VND")
+            with col2:
+                new_qty = st.number_input("Số lượng", min_value=1,
+                                          value=item["qty"], key=f"cart_qty_{item['id']}")
+                item["qty"] = new_qty
+            with col3:
+                if st.button("❌ Xóa", key=f"remove_{item['id']}"):
+                    st.session_state.cart.remove(item)
+                    st.rerun()
+            total += item["qty"] * item["price"]
+
+        st.write(f"### Tổng cộng: {total:,} VND")
+
+        if st.button("✅ Đặt hàng"):
+            st.session_state.orders.append({
+                "items": st.session_state.cart.copy(),
+                "status": "Chờ xác nhận"
+            })
+            st.session_state.cart.clear()
+            st.success("Đặt hàng thành công!")
 
 # ---------------------------
 # Đơn hàng của tôi
 # ---------------------------
 elif menu == "Đơn hàng của tôi":
-    st.title("📦 Đơn hàng của tôi")
+    st.title("📦 Đơn hàng đã đặt")
 
-    if st.session_state.orders:
-        for order in st.session_state.orders:
-            st.subheader(f"Đơn {order['id']}")
-            for it in order["items"]:
-                st.write(f"- {it['name']} - {it['price']:,} VND x {it['qty']}")
-            st.write(f"💰 Tổng: {order['total']:,} VND")
-            st.write(f"📝 Trạng thái: **{order['status']}**")
-
-            if order["status"] == "Chưa xác nhận":
-                if st.button(f"❌ Hủy đơn {order['id']}", key=f"cancel_{order['id']}"):
-                    st.session_state.orders.remove(order)
-                    st.warning(f"Đã hủy đơn {order['id']}")
-                    st.experimental_rerun()
-    else:
+    if not st.session_state.orders:
         st.info("Bạn chưa có đơn hàng nào.")
+    else:
+        for i, order in enumerate(st.session_state.orders):
+            st.write(f"### Đơn hàng #{i+1} - Trạng thái: {order['status']}")
+            for item in order["items"]:
+                st.write(f"- {item['name']} x {item['qty']} = {item['qty']*item['price']:,} VND")
+
+            if order["status"] == "Chờ xác nhận":
+                if st.button("❌ Hủy đơn này", key=f"cancel_{i}"):
+                    st.session_state.orders.pop(i)
+                    st.success("Đã hủy đơn hàng.")
+                    st.rerun()
 
 # ---------------------------
 # Admin
 # ---------------------------
 elif menu == "Admin":
-    st.title("🔑 Quản lý Admin")
-
-    if not st.session_state.is_admin:
-        pwd = st.text_input("Nhập mật khẩu admin:", type="password")
+    if not st.session_state.logged_in or not st.session_state.is_admin:
+        st.subheader("🔐 Đăng nhập Admin")
+        user = st.text_input("Tên đăng nhập")
+        pw = st.text_input("Mật khẩu", type="password")
         if st.button("Đăng nhập"):
-            if pwd == "admin123":  # đổi mật khẩu ở đây
+            if user == ADMIN_USER and pw == ADMIN_PASS:
+                st.session_state.logged_in = True
                 st.session_state.is_admin = True
                 st.success("Đăng nhập thành công!")
+                st.rerun()
             else:
-                st.error("Sai mật khẩu.")
+                st.error("Sai tài khoản hoặc mật khẩu")
     else:
-        st.success("Bạn đã đăng nhập với quyền admin ✅")
-
-        if st.session_state.orders:
-            for order in st.session_state.orders:
-                st.subheader(f"Đơn {order['id']}")
-                for it in order["items"]:
-                    st.write(f"- {it['name']} - {it['price']:,} VND x {it['qty']}")
-                st.write(f"💰 Tổng: {order['total']:,} VND")
-                st.write(f"📝 Trạng thái: **{order['status']}**")
-
-                if order["status"] == "Chưa xác nhận":
-                    if st.button(f"✅ Xác nhận đơn {order['id']}", key=f"approve_{order['id']}"):
-                        order["status"] = "Đã xác nhận"
-                        st.success(f"Đơn {order['id']} đã được xác nhận!")
-                        st.experimental_rerun()
-        else:
+        st.title("📊 Quản lý đơn hàng")
+        if not st.session_state.orders:
             st.info("Chưa có đơn hàng nào.")
+        else:
+            for i, order in enumerate(st.session_state.orders):
+                st.write(f"### Đơn hàng #{i+1} - Trạng thái: {order['status']}")
+                for item in order["items"]:
+                    st.write(f"- {item['name']} x {item['qty']} = {item['qty']*item['price']:,} VND")
 
+                if order["status"] == "Chờ xác nhận":
+                    if st.button("✅ Xác nhận đơn", key=f"confirm_{i}"):
+                        order["status"] = "Đã xác nhận"
+                        st.success(f"Đơn hàng #{i+1} đã được xác nhận!")
+                        st.rerun()
+
+        if st.button("🚪 Đăng xuất"):
+            st.session_state.logged_in = False
+            st.session_state.is_admin = False
+            st.success("Đã đăng xuất.")
+            st.rerun()
