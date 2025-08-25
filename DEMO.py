@@ -30,7 +30,7 @@ def get_image_link(link: str) -> str:
 products = [
     {
         "id": 1,
-        "name": "Áo thun",
+        "name": "quần sịp",
         "price": 120000,
         "image": "https://drive.google.com/file/d/1s6sJALOs2IxX5f9nqa4Tf8zut_U9KE3O/view?usp=sharing",
     },
@@ -54,3 +54,4 @@ for p in products:
     img_link = get_image_link(p["image"])
     st.image(img_link, caption=p["name"], width=200)
     st.write(f"💰 Giá: {p['price']:,} VND")
+
