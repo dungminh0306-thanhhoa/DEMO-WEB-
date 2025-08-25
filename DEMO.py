@@ -1,7 +1,4 @@
 import streamlit as st
-import requests
-from io import BytesIO
-from PIL import Image
 import re
 from urllib.parse import urlparse, parse_qs
 
@@ -16,26 +13,44 @@ def get_file_id(link: str) -> str:
         return m.group(1)
     return None
 
-# Hàm tải ảnh về từ Google Drive
-def load_drive_image(link: str):
+# Hàm convert Google Drive link -> thumbnail
+def gdrive_to_thumbnail(link: str, size: int = 800) -> str:
     file_id = get_file_id(link)
     if not file_id:
-        st.error("❌ Không tìm thấy file_id trong link Google Drive")
-        return None
-    direct_link = f"https://drive.google.com/uc?export=download&id={file_id}"
-    try:
-        response = requests.get(direct_link)
-        response.raise_for_status()
-        return Image.open(BytesIO(response.content))
-    except Exception as e:
-        st.error(f"⚠️ Không tải được ảnh: {e}")
-        return None
+        return link
+    return f"https://drive.google.com/thumbnail?id={file_id}&sz=w{size}"
 
-# Test với link của mày
-drive_link = "https://drive.google.com/file/d/1s6sJALOs2IxX5f9nqa4Tf8zut_U9KE3O/view?usp=sharing"
+# Hàm xử lý ảnh chung (Drive hoặc link ngoài)
+def get_image_link(link: str) -> str:
+    if "drive.google.com" in link:
+        return gdrive_to_thumbnail(link, size=800)
+    return link
 
-st.title("🖼️ Test load ảnh Google Drive (cách 3)")
+# Danh sách sản phẩm
+products = [
+    {
+        "id": 1,
+        "name": "Áo thun",
+        "price": 120000,
+        "image": "https://drive.google.com/file/d/1s6sJALOs2IxX5f9nqa4Tf8zut_U9KE3O/view?usp=sharing",
+    },
+    {
+        "id": 2,
+        "name": "Quần jean",
+        "price": 250000,
+        "image": "https://via.placeholder.com/200",
+    },
+    {
+        "id": 3,
+        "name": "Áo khoác",
+        "price": 350000,
+        "image": "https://via.placeholder.com/200",
+    },
+]
 
-img = load_drive_image(drive_link)
-if img:
-    st.image(img, caption="Ảnh từ Google Drive (full size)", use_column_width=True)
+st.title("🛍️ Danh sách sản phẩm (ảnh Google Drive = thumbnail)")
+
+for p in products:
+    img_link = get_image_link(p["image"])
+    st.image(img_link, caption=p["name"], width=200)
+    st.write(f"💰 Giá: {p['price']:,} VND")
