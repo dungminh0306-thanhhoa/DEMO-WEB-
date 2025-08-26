@@ -18,18 +18,14 @@ def gdrive_thumbnail(link: str, width: int = 400) -> str:
         file_id = link.split("id=")[1].split("&")[0]
     return f"https://drive.google.com/thumbnail?id={file_id}&sz=w{width}" if file_id else link
 
-# ======= HÀM LOAD ẢNH VÀ TRẢ VỀ BASE64 =======
-def load_image_base64(link: str, height: int = 200):
+# ======= HÀM LOAD ẢNH TRẢ VỀ BASE64 =======
+def load_image_base64(link: str):
     try:
         if not link:
             return None
         resp = requests.get(gdrive_thumbnail(link, 400), timeout=8)
         resp.raise_for_status()
         img = Image.open(BytesIO(resp.content))
-        # resize theo chiều cao
-        w, h = img.size
-        new_w = int((height / h) * w)
-        img = img.resize((new_w, height))
         buffer = BytesIO()
         img.save(buffer, format="PNG")
         return base64.b64encode(buffer.getvalue()).decode()
@@ -60,12 +56,12 @@ for i, p in enumerate(products):
             unsafe_allow_html=True
         )
         
-        img_b64 = load_image_base64(p.get("image", ""), height=200)
+        img_b64 = load_image_base64(p.get("image", ""))
         if img_b64:
             st.markdown(
                 f"""
                 <img src="data:image/png;base64,{img_b64}" 
-                     style="display:block; margin:auto; border-radius:8px;"/>
+                     style="display:block; margin:auto; max-width:150px; height:auto; border-radius:8px;"/>
                 """,
                 unsafe_allow_html=True
             )
