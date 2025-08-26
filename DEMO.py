@@ -42,7 +42,7 @@ for p in products:
     try:
         resp = requests.get(img_url, timeout=5)
         img = Image.open(BytesIO(resp.content))
-        img.thumbnail((120,120))
+        img.thumbnail((50,50))
         buf = BytesIO(); img.save(buf, format="PNG")
         img_b64 = base64.b64encode(buf.getvalue()).decode()
         img_html = f'<img src="data:image/png;base64,{img_b64}"/>'
@@ -60,3 +60,4 @@ for p in products:
 css_and_html += "</div>"
 
 st.markdown(css_and_html, unsafe_allow_html=True)
+
