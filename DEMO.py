@@ -15,7 +15,7 @@ st.set_page_config(page_title="Mini Shop", page_icon="🛍️", layout="wide")
 # ==============================
 # Đọc sản phẩm từ Google Sheets
 # ==============================
-SHEET_ID = "1my6VbCaAlDjVm5ITvjSV94tVU8AfR8zrHuEtKhjCAhY"
+SHEET_ID = "1qrlxFzuEyBLNq1x0dITgNGRz-59dLV7pB_tsgDHfp40"
 SHEET_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv"
 
 @st.cache_data(ttl=300)
@@ -66,17 +66,11 @@ def add_to_cart(product, qty: int = 1):
     item["qty"] = qty
     st.session_state.cart.append(item)
 
-def cart_total():
-    return sum(it["price"] * it["qty"] for it in st.session_state.cart)
-
-def order_total(order):
-    return sum(it["price"] * it["qty"] for it in order["items"])
-
 # ==============================
 # Admin config
 # ==============================
 ADMIN_USER = "admin"
-ADMIN_PASS = "123"   # đổi tùy ý
+ADMIN_PASS = "123"
 
 # ==============================
 # Session state
@@ -133,11 +127,9 @@ else:
         st.success("Đã đăng xuất.")
         st.rerun()
 
-# Badge thông báo cho admin khi có đơn mới
 if st.session_state.is_admin and st.session_state.new_order:
     st.sidebar.error("🔔 Có đơn hàng mới!")
 
-# Menu
 if st.session_state.is_admin:
     menu = st.sidebar.radio("Menu", ["🏬 Trang chủ", "🛒 Giỏ hàng", "📦 Đơn của tôi", "📋 Quản lý đơn hàng"])
 else:
@@ -147,7 +139,7 @@ else:
 # Trang chủ
 # ==============================
 if menu == "🏬 Trang chủ":
-    st.title("🛍️ Cửa hàng online (dữ liệu từ Google Sheets)")
+    st.title("🛍️ Cửa hàng online (từ Google Sheets)")
 
     ensure_cart_schema()
 
@@ -173,15 +165,12 @@ if menu == "🏬 Trang chủ":
 # ==============================
 elif menu == "🛒 Giỏ hàng":
     st.title("🛒 Giỏ hàng của bạn")
-
     ensure_cart_schema()
-
     if not st.session_state.cart:
         st.info("Giỏ hàng đang trống.")
     else:
         total = 0
         remove_indices = []
-
         for i, item in enumerate(st.session_state.cart):
             c1, c2, c3, c4 = st.columns([4, 2, 2, 1])
             with c1:
@@ -195,9 +184,7 @@ elif menu == "🛒 Giỏ hàng":
             with c4:
                 if st.button("❌", key=f"rm_{i}"):
                     remove_indices.append(i)
-
             total += item["price"] * item["qty"]
-
         for idx in sorted(remove_indices, reverse=True):
             st.session_state.cart.pop(idx)
             st.experimental_rerun()
@@ -224,10 +211,8 @@ elif menu == "🛒 Giỏ hàng":
 # ==============================
 elif menu == "📦 Đơn của tôi":
     st.title("📦 Đơn hàng của tôi")
-
     current_user = st.session_state.username if st.session_state.username else "Khách"
     my_orders = [o for o in st.session_state.orders if o["user"] == current_user]
-
     if not my_orders:
         st.info("Bạn chưa có đơn hàng nào.")
     else:
@@ -238,7 +223,6 @@ elif menu == "📦 Đơn của tôi":
                     st.write(f"- {it['name']} x {it['qty']} = {(it['price']*it['qty']):,} VND")
                     total += it["price"] * it["qty"]
                 st.write(f"**Tổng cộng:** {total:,} VND")
-
                 if o["status"] == "Chờ xác nhận":
                     if st.button(f"❌ Hủy đơn #{o['id']}", key=f"cancel_{o['id']}"):
                         o["status"] = "Đã hủy"
@@ -253,11 +237,9 @@ elif menu == "📋 Quản lý đơn hàng":
         st.error("Bạn không có quyền truy cập trang này.")
     else:
         st.title("📋 Quản lý tất cả đơn hàng")
-
         if st.session_state.new_order:
             st.info("🔔 Có đơn hàng mới vừa được tạo.")
             st.session_state.new_order = False
-
         if not st.session_state.orders:
             st.info("Chưa có đơn hàng nào.")
         else:
@@ -266,18 +248,15 @@ elif menu == "📋 Quản lý đơn hàng":
                 options=["Chờ xác nhận", "Đã xác nhận", "Đã hủy"],
                 default=["Chờ xác nhận", "Đã xác nhận", "Đã hủy"]
             )
-
             for o in st.session_state.orders:
                 if o["status"] not in filter_status:
                     continue
-
                 with st.expander(f"🆔 Đơn #{o['id']} • {o['user']} • {o['time']} • {o['status']}", expanded=False):
                     total = 0
                     for it in o["items"]:
                         st.write(f"- {it['name']} x {it['qty']} = {(it['price']*it['qty']):,} VND")
                         total += it["price"] * it["qty"]
                     st.write(f"**Tổng cộng:** {total:,} VND")
-
                     c1, c2, c3 = st.columns(3)
                     with c1:
                         if o["status"] == "Chờ xác nhận":
