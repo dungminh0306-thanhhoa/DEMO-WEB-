@@ -1,72 +1,100 @@
 import streamlit as st
-import pandas as pd
+import gspread
+from google.oauth2.service_account import Credentials
 import requests
 from PIL import Image
 from io import BytesIO
 import base64
 
-st.set_page_config(page_title="Shop Online", layout="wide")
+# ==== KẾT NỐI GOOGLE SHEETS ====
+SCOPE = [
+    "https://www.googleapis.com/auth/spreadsheets",
+    "https://www.googleapis.com/auth/drive"
+]
 
-# ======= HÀM CHUYỂN LINK GOOGLE DRIVE THÀNH LINK THUMBNAIL =======
-def gdrive_thumbnail(link: str, width: int = 400) -> str:
-    if "drive.google.com" not in link:
-        return link
-    file_id = None
-    if "/file/d/" in link:
-        file_id = link.split("/file/d/")[1].split("/")[0]
-    elif "id=" in link:
-        file_id = link.split("id=")[1].split("&")[0]
-    return f"https://drive.google.com/thumbnail?id={file_id}&sz=w{width}" if file_id else link
+# thay file service account JSON của bạn
+creds = Credentials.from_service_account_file("service_account.json", scopes=SCOPE)
+client = gspread.authorize(creds)
 
-# ======= HÀM LOAD ẢNH TRẢ VỀ BASE64 =======
-def load_image_base64(link: str):
+# link sheet bạn đưa
+SHEET_URL = "https://docs.google.com/spreadsheets/d/1my6VbCaAlDjVm5ITvjSV94tVU8AfR8zrHuEtKhjCAhY/edit?usp=sharing"
+spreadsheet = client.open_by_url(SHEET_URL)
+worksheet = spreadsheet.sheet1
+data = worksheet.get_all_records()
+
+# ==== HÀM HỖ TRỢ ====
+def convert_drive_link(url):
+    """Chuyển link Google Drive về direct link"""
+    if "drive.google.com" in url and "/d/" in url:
+        file_id = url.split("/d/")[1].split("/")[0]
+        return f"https://drive.google.com/uc?id={file_id}"
+    return url
+
+def load_image_base64(url):
+    """Lấy ảnh từ link và chuyển thành base64"""
     try:
-        if not link:
-            return None
-        resp = requests.get(gdrive_thumbnail(link, 400), timeout=8)
-        resp.raise_for_status()
-        img = Image.open(BytesIO(resp.content))
+        url = convert_drive_link(url)
+        response = requests.get(url)
+        img = Image.open(BytesIO(response.content))
+        img.thumbnail((150, 150))  # resize ảnh nhỏ lại
         buffer = BytesIO()
         img.save(buffer, format="PNG")
         return base64.b64encode(buffer.getvalue()).decode()
-    except Exception:
+    except Exception as e:
         return None
 
-# ======= LOAD DATA TỪ GOOGLE SHEET =======
-sheet_url = "https://docs.google.com/spreadsheets/d/1my6VbCaAlDjVm5ITvjSV94tVU8AfR8zrHuEtKhjCAhY/gviz/tq?tqx=out:csv&sheet=Sheet1"
+# ==== GIAO DIỆN ====
+st.set_page_config(layout="wide")
+st.title("🛍️ Danh sách sản phẩm")
 
-@st.cache_data(ttl=300)
-def load_products():
-    df = pd.read_csv(sheet_url)
-    return df.to_dict("records")
+# CSS Grid layout
+st.markdown(
+    """
+    <style>
+    .product-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 20px;
+        justify-items: center;
+    }
+    .product-card {
+        border: 1px solid #ddd;
+        border-radius: 10px;
+        padding: 10px;
+        background: #fafafa;
+        text-align: center;
+        max-width: 200px;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    }
+    .product-card img {
+        max-width: 150px;
+        height: auto;
+        border-radius: 8px;
+        margin-bottom: 8px;
+    }
+    </style>
+    <div class="product-grid">
+    """,
+    unsafe_allow_html=True
+)
 
-products = load_products()
+# render từng sản phẩm
+for p in data:
+    img_b64 = load_image_base64(p.get("image", ""))
+    if img_b64:
+        img_html = f'<img src="data:image/png;base64,{img_b64}" />'
+    else:
+        img_html = '<div style="width:150px;height:150px;background:#eee;line-height:150px;">No Image</div>'
 
-# ======= HIỂN THỊ SẢN PHẨM =======
-st.title("🛍️ Cửa Hàng Online")
+    st.markdown(
+        f"""
+        <div class="product-card">
+            {img_html}
+            <b>{p.get('name','Không tên')}</b><br>
+            💰 Giá: {p.get('price','0')} VNĐ
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
 
-cols = st.columns(4)  # 4 sản phẩm mỗi hàng
-for i, p in enumerate(products):
-    with cols[i % 4]:
-        st.markdown(
-            """
-            <div style="border:1px solid #ddd; border-radius:10px; padding:10px; 
-                        text-align:center; margin-bottom:15px; background:#fafafa;">
-            """,
-            unsafe_allow_html=True
-        )
-        
-        img_b64 = load_image_base64(p.get("image", ""))
-        if img_b64:
-            st.markdown(
-                f"""
-                <img src="data:image/png;base64,{img_b64}" 
-                     style="display:block; margin:auto; max-width:150px; height:auto; border-radius:8px;"/>
-                """,
-                unsafe_allow_html=True
-            )
-
-        st.markdown(f"**{p.get('name', 'Không tên')}**")
-        st.write(f"💰 Giá: {p.get('price', '0')} VNĐ")
-
-        st.markdown("</div>", unsafe_allow_html=True)
+st.markdown("</div>", unsafe_allow_html=True)
