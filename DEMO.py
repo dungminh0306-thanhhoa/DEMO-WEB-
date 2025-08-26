@@ -42,12 +42,12 @@ for p in products:
     try:
         resp = requests.get(img_url, timeout=5)
         img = Image.open(BytesIO(resp.content))
-        img.thumbnail((50,50))
+        img.thumbnail((120,120))
         buf = BytesIO(); img.save(buf, format="PNG")
         img_b64 = base64.b64encode(buf.getvalue()).decode()
         img_html = f'<img src="data:image/png;base64,{img_b64}"/>'
     except:
-        img_html = '<div style="width:120px;height:120px;background:#eee;"></div>'
+        img_html = '<div style="width:40px;height:40px;background:#eee;"></div>'
 
     css_and_html += f"""
     <div class="product-card">
@@ -60,4 +60,5 @@ for p in products:
 css_and_html += "</div>"
 
 st.markdown(css_and_html, unsafe_allow_html=True)
+
 
