@@ -18,7 +18,7 @@ def gdrive_thumbnail(link: str, width: int = 400) -> str:
     return f"https://drive.google.com/thumbnail?id={file_id}&sz=w{width}" if file_id else link
 
 # ======= HÀM LOAD ẢNH VỚI KÍCH THƯỚC CỐ ĐỊNH =======
-def load_image(link: str, height: int = 250):
+def load_image(link: str, height: int = 200):
     try:
         if not link:
             return None
@@ -49,8 +49,18 @@ st.title("🛍️ Cửa Hàng Online")
 cols = st.columns(4)  # 4 sản phẩm mỗi hàng
 for i, p in enumerate(products):
     with cols[i % 4]:
-        img = load_image(p.get("image", ""))
+        st.markdown(
+            """
+            <div style="border:1px solid #ddd; border-radius:10px; padding:10px; text-align:center; margin-bottom:15px; background:#fafafa;">
+            """,
+            unsafe_allow_html=True
+        )
+        
+        img = load_image(p.get("image", ""), height=200)
         if img:
-            st.image(img, use_container_width=True)
+            st.image(img, caption="", use_container_width=False)
+
         st.markdown(f"**{p.get('name', 'Không tên')}**")
         st.write(f"💰 Giá: {p.get('price', '0')} VNĐ")
+
+        st.markdown("</div>", unsafe_allow_html=True)
