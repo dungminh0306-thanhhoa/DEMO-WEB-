@@ -27,7 +27,7 @@ html = """
 }
 .product-card img {
   width: 150px;   /* 👈 ảnh luôn cố định 150px */
-  height: auto;
+  height: 150px;
   object-fit: contain;
 }
 </style>
@@ -48,3 +48,4 @@ for p in products:
 html += "</div>"
 
 st.markdown(html, unsafe_allow_html=True)
+
