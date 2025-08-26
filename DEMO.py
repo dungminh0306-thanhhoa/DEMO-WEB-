@@ -2,31 +2,32 @@ import streamlit as st
 import pandas as pd
 
 st.set_page_config(layout="wide")
-st.title("🛍️ Mini Shop - Fixed Size")
+st.title("🛍️ Mini Shop - Grid Fix Size")
 
 # Lấy dữ liệu từ Google Sheets
 sheet_url = "https://docs.google.com/spreadsheets/d/1my6VbCaAlDjVm5ITvjSV94tVU8AfR8zrHuEtKhjCAhY/export?format=csv"
 df = pd.read_csv(sheet_url)
 products = df.to_dict("records")
 
-# CSS ép card có size nhỏ gọn
+# CSS ép grid và card
 html = """
 <style>
 .product-grid {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, 150px);  /* 👈 mỗi card chỉ 150px */
   gap: 15px;
+  justify-content: start;   /* gom về bên trái */
 }
 .product-card {
-  width: 180px;          /* 👈 mỗi sản phẩm chỉ rộng 180px */
-  border:1px solid #ddd;
+  width: 150px;
+  border: 1px solid #ddd;
   border-radius: 10px;
-  padding: 10px;
-  text-align:center;
+  padding: 8px;
+  text-align: center;
   background: #fff;
 }
 .product-card img {
-  max-width: 150px;      /* 👈 ảnh nhỏ gọn cố định */
+  width: 100px;   /* 👈 ảnh chỉ 100px */
   height: auto;
   object-fit: contain;
 }
