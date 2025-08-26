@@ -27,8 +27,11 @@ css_and_html = """
   max-width: 180px; background: #fafafa;
 }
 .product-card img {
-  max-width: 150px; height: auto;
+  width: 120px !important;
+  height: auto !important;
   border-radius: 5px; margin-bottom: 6px;
+  display: block;
+  margin-left: auto; margin-right: auto;
 }
 </style>
 <div class="product-grid">
@@ -36,17 +39,15 @@ css_and_html = """
 
 for p in products:
     img_url = p.get("image", "")
-    # base64
-    img_b64 = None
     try:
         resp = requests.get(img_url, timeout=5)
         img = Image.open(BytesIO(resp.content))
-        img.thumbnail((150,150))
+        img.thumbnail((120,120))
         buf = BytesIO(); img.save(buf, format="PNG")
         img_b64 = base64.b64encode(buf.getvalue()).decode()
         img_html = f'<img src="data:image/png;base64,{img_b64}"/>'
     except:
-        img_html = '<div style="width:150px;height:150px;background:#eee;"></div>'
+        img_html = '<div style="width:120px;height:120px;background:#eee;"></div>'
 
     css_and_html += f"""
     <div class="product-card">
