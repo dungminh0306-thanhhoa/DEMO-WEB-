@@ -62,4 +62,5 @@ for p in products:
 
 html += "</div>"
 
-st.html(html, height=800, scrolling=True)
+st.html(html, height=300, scrolling=True)
+
