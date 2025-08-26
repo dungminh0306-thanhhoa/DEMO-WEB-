@@ -3,6 +3,7 @@ import pandas as pd
 import requests
 from PIL import Image
 from io import BytesIO
+import base64
 
 st.set_page_config(page_title="Shop Online", layout="wide")
 
@@ -17,19 +18,21 @@ def gdrive_thumbnail(link: str, width: int = 400) -> str:
         file_id = link.split("id=")[1].split("&")[0]
     return f"https://drive.google.com/thumbnail?id={file_id}&sz=w{width}" if file_id else link
 
-# ======= HÀM LOAD ẢNH VỚI KÍCH THƯỚC CỐ ĐỊNH =======
-def load_image(link: str, height: int = 200):
+# ======= HÀM LOAD ẢNH VÀ TRẢ VỀ BASE64 =======
+def load_image_base64(link: str, height: int = 200):
     try:
         if not link:
             return None
         resp = requests.get(gdrive_thumbnail(link, 400), timeout=8)
         resp.raise_for_status()
         img = Image.open(BytesIO(resp.content))
-        # resize theo chiều cao cố định
+        # resize theo chiều cao
         w, h = img.size
         new_w = int((height / h) * w)
         img = img.resize((new_w, height))
-        return img
+        buffer = BytesIO()
+        img.save(buffer, format="PNG")
+        return base64.b64encode(buffer.getvalue()).decode()
     except Exception:
         return None
 
@@ -51,14 +54,21 @@ for i, p in enumerate(products):
     with cols[i % 4]:
         st.markdown(
             """
-            <div style="border:1px solid #ddd; border-radius:10px; padding:10px; text-align:center; margin-bottom:15px; background:#fafafa;">
+            <div style="border:1px solid #ddd; border-radius:10px; padding:10px; 
+                        text-align:center; margin-bottom:15px; background:#fafafa;">
             """,
             unsafe_allow_html=True
         )
         
-        img = load_image(p.get("image", ""), height=200)
-        if img:
-            st.image(img, caption="", use_container_width=False)
+        img_b64 = load_image_base64(p.get("image", ""), height=200)
+        if img_b64:
+            st.markdown(
+                f"""
+                <img src="data:image/png;base64,{img_b64}" 
+                     style="display:block; margin:auto; border-radius:8px;"/>
+                """,
+                unsafe_allow_html=True
+            )
 
         st.markdown(f"**{p.get('name', 'Không tên')}**")
         st.write(f"💰 Giá: {p.get('price', '0')} VNĐ")
