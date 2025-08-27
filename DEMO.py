@@ -1,113 +1,142 @@
 import streamlit as st
 
-# ================== DỮ LIỆU SẢN PHẨM ==================
+# =========================
+# Hàm tiện ích
+# =========================
+def gdrive_to_direct(link):
+    """Chuyển link Google Drive thành link ảnh trực tiếp"""
+    if "drive.google.com" in link and "/file/d/" in link:
+        file_id = link.split("/file/d/")[1].split("/")[0]
+        return f"https://drive.google.com/uc?export=view&id={file_id}"
+    return link
+
+# =========================
+# Dữ liệu mẫu
+# =========================
 products = [
-    {"id": 1, "name": "Áo thun", "price": 120000, "image": "https://via.placeholder.com/150"},
-    {"id": 2, "name": "Áo sơ mi", "price": 250000, "image": "https://via.placeholder.com/150"},
-    {"id": 3, "name": "Quần jean", "price": 350000, "image": "https://via.placeholder.com/150"},
+    {"id": 1, "name": "Áo thun", "price": 120000,
+     "image": "https://drive.google.com/file/d/1s6sJALOs2IxX5f9nqa4Tf8zut_U9KE3O/view?usp=sharing"},
+    {"id": 2, "name": "Quần jean", "price": 250000,
+     "image": "https://via.placeholder.com/150"},
+    {"id": 3, "name": "Áo khoác", "price": 350000,
+     "image": "https://via.placeholder.com/150"},
 ]
 
-# ================== KHỞI TẠO SESSION ==================
+# =========================
+# State lưu trữ
+# =========================
 if "cart" not in st.session_state:
-    st.session_state.cart = []
+    st.session_state.cart = {}
+
 if "orders" not in st.session_state:
     st.session_state.orders = []
-if "admin_view" not in st.session_state:
-    st.session_state.admin_view = []
-if "logged_in" not in st.session_state:
-    st.session_state.logged_in = False
-if "is_admin" not in st.session_state:
-    st.session_state.is_admin = False
 
-# ================== SIDEBAR ==================
-st.sidebar.image("90f7196d-0489-4a6c-a3c2-758f151eee1e.png", use_column_width=True)
-menu = st.sidebar.radio("Chọn chức năng", ["Trang chủ", "Giỏ hàng", "Đơn hàng của tôi", "Đăng nhập", "Quản lý (Admin)"])
+if "user" not in st.session_state:
+    st.session_state.user = "guest"  # guest hoặc admin
 
-# ================== HÀM HỖ TRỢ ==================
-def add_to_cart(product, qty):
-    for item in st.session_state.cart:
-        if item["id"] == product["id"]:
-            item["qty"] += qty
-            return
-    st.session_state.cart.append({"id": product["id"], "name": product["name"], "price": product["price"], "qty": qty})
+# =========================
+# Giao diện
+# =========================
+st.title("🛒 Cửa hàng Online")
 
-def remove_from_cart(product_id):
-    st.session_state.cart = [item for item in st.session_state.cart if item["id"] != product_id]
+menu = st.sidebar.radio("Chức năng", ["Mua sắm", "Giỏ hàng", "Đơn hàng của tôi", "Quản lý"])
 
-def place_order():
-    if st.session_state.cart:
-        order = {"items": st.session_state.cart.copy(), "status": "Chờ xác nhận"}
-        st.session_state.orders.append(order)
-        st.session_state.admin_view.append(order)  # báo cho admin ngay khi khách đặt
-        st.session_state.cart.clear()
-        st.success("Đặt hàng thành công! Đơn hàng đang chờ xác nhận.")
-
-# ================== GIAO DIỆN TRANG ==================
-if menu == "Trang chủ":
-    st.header("🛍️ Sản phẩm")
+# =========================
+# MUA SẮM
+# =========================
+if menu == "Mua sắm":
+    st.header("Sản phẩm")
     for p in products:
-        col1, col2 = st.columns([1, 3])
+        col1, col2 = st.columns([1, 2])
         with col1:
-            st.image(p["image"], width=120)
+            st.image(gdrive_to_direct(p["image"]), width=150)
         with col2:
-            st.subheader(p["name"])
-            st.write(f"Giá: {p['price']:,} VND")
-            qty = st.number_input("Số lượng", min_value=1, value=1, key=f"qty_{p['id']}")
-            if st.button("Thêm vào giỏ", key=f"btn_{p['id']}"):
-                add_to_cart(p, qty)
-                st.success(f"Đã thêm {qty} x {p['name']} vào giỏ hàng!")
+            st.write(f"**{p['name']}** - {p['price']:,} VND")
+            qty = st.number_input(f"Số lượng {p['name']}", min_value=1, value=1, key=f"qty_{p['id']}")
+            if st.button(f"🛍️ Thêm {p['name']} vào giỏ", key=f"add_{p['id']}"):
+                if p["id"] in st.session_state.cart:
+                    st.session_state.cart[p["id"]]["qty"] += qty
+                else:
+                    st.session_state.cart[p["id"]] = {"product": p, "qty": qty}
+                st.success(f"Đã thêm {qty} {p['name']} vào giỏ hàng!")
 
+# =========================
+# GIỎ HÀNG
+# =========================
 elif menu == "Giỏ hàng":
     st.header("🛒 Giỏ hàng")
     if not st.session_state.cart:
         st.info("Giỏ hàng trống.")
     else:
         total = 0
-        for item in st.session_state.cart:
-            st.write(f"{item['name']} - {item['qty']} x {item['price']:,} VND")
-            total += item['qty'] * item['price']
-            if st.button(f"Xóa {item['name']}", key=f"rm_{item['id']}"):
-                remove_from_cart(item["id"])
-                st.warning(f"Đã xóa {item['name']}")
-        st.subheader(f"💵 Tổng cộng: {total:,} VND")
-        if st.button("Đặt hàng"):
-            place_order()
+        for pid, item in st.session_state.cart.items():
+            p = item["product"]
+            qty = st.number_input(f"{p['name']}", min_value=1, value=item["qty"], key=f"cart_qty_{pid}")
+            st.session_state.cart[pid]["qty"] = qty
+            st.write(f"Giá: {p['price']:,} VND | Thành tiền: {p['price'] * qty:,} VND")
+            total += p["price"] * qty
 
+        st.write(f"### Tổng cộng: {total:,} VND")
+
+        if st.button("✅ Đặt hàng"):
+            st.session_state.orders.append({
+                "items": st.session_state.cart.copy(),
+                "status": "Chờ xác nhận"
+            })
+            st.session_state.cart.clear()
+            st.success("Đã đặt hàng thành công!")
+
+# =========================
+# ĐƠN HÀNG KHÁCH
+# =========================
 elif menu == "Đơn hàng của tôi":
     st.header("📦 Đơn hàng của tôi")
     if not st.session_state.orders:
         st.info("Bạn chưa có đơn hàng nào.")
     else:
         for i, order in enumerate(st.session_state.orders):
-            st.write(f"Đơn hàng {i+1} - Trạng thái: {order['status']}")
-            for item in order["items"]:
-                st.write(f"- {item['name']} ({item['qty']} x {item['price']:,} VND)")
+            st.write(f"### Đơn hàng #{i+1} - Trạng thái: {order['status']}")
+            for pid, item in order["items"].items():
+                p = item["product"]
+                st.write(f"- {p['name']} x {item['qty']} ({p['price']:,} VND)")
 
-elif menu == "Đăng nhập":
-    st.header("🔑 Đăng nhập")
-    user = st.text_input("Tên đăng nhập")
-    pw = st.text_input("Mật khẩu", type="password")
-    if st.button("Đăng nhập"):
-        if user == "admin" and pw == "123":
-            st.session_state.logged_in = True
-            st.session_state.is_admin = True
-            st.success("Đăng nhập thành công với quyền Admin!")
-        else:
-            st.error("Sai tài khoản hoặc mật khẩu.")
+            if order["status"] == "Chờ xác nhận":
+                if st.button(f"❌ Huỷ đơn #{i+1}", key=f"cancel_{i}"):
+                    st.session_state.orders[i]["status"] = "Đã huỷ"
+                    st.warning(f"Bạn đã huỷ đơn #{i+1}")
 
-elif menu == "Quản lý (Admin)":
-    if not st.session_state.is_admin:
-        st.error("Bạn cần đăng nhập Admin để xem.")
+# =========================
+# QUẢN LÝ
+# =========================
+elif menu == "Quản lý":
+    st.header("👨‍💼 Quản lý cửa hàng")
+
+    if st.session_state.user != "admin":
+        with st.form("login_form"):
+            username = st.text_input("Tài khoản")
+            password = st.text_input("Mật khẩu", type="password")
+            login_btn = st.form_submit_button("Đăng nhập")
+            if login_btn:
+                if username == "admin" and password == "123":
+                    st.session_state.user = "admin"
+                    st.success("Đăng nhập thành công!")
+                else:
+                    st.error("Sai tài khoản hoặc mật khẩu.")
     else:
-        st.header("📊 Quản lý đơn hàng")
-        if not st.session_state.admin_view:
+        st.success("Bạn đang đăng nhập với quyền quản lý.")
+        if not st.session_state.orders:
             st.info("Chưa có đơn hàng nào.")
         else:
-            for i, order in enumerate(st.session_state.admin_view):
-                st.write(f"Đơn hàng {i+1} - Trạng thái: {order['status']}")
-                for item in order["items"]:
-                    st.write(f"- {item['name']} ({item['qty']} x {item['price']:,} VND)")
+            for i, order in enumerate(st.session_state.orders):
+                st.write(f"### Đơn hàng #{i+1} - Trạng thái: {order['status']}")
+                for pid, item in order["items"].items():
+                    p = item["product"]
+                    st.write(f"- {p['name']} x {item['qty']} ({p['price']:,} VND)")
+
                 if order["status"] == "Chờ xác nhận":
-                    if st.button(f"Xác nhận đơn {i+1}", key=f"cfm_{i}"):
-                        order["status"] = "Đã xác nhận"
-                        st.success(f"Đơn {i+1} đã được xác nhận!")
+                    if st.button(f"✅ Xác nhận đơn #{i+1}", key=f"confirm_{i}"):
+                        st.session_state.orders[i]["status"] = "Đã xác nhận"
+                        st.success(f"Đơn #{i+1} đã được xác nhận")
+                    if st.button(f"❌ Từ chối đơn #{i+1}", key=f"reject_{i}"):
+                        st.session_state.orders[i]["status"] = "Bị từ chối"
+                        st.warning(f"Đơn #{i+1} đã bị từ chối")
