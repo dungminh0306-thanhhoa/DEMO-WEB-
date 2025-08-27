@@ -21,6 +21,7 @@ try:
     df = pd.DataFrame(records)
 
     st.success("✅ Đọc Google Sheet thành công!")
-    st.dataframe(df.head(5))  # hiện 5 dòng đầu
+    st.dataframe(df.head(100))  # hiện 5 dòng đầu
 except Exception as e:
     st.error(f"❌ Lỗi khi đọc Google Sheet: {e}")
+
